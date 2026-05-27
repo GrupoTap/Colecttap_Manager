@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ColectTap Manager v1.14</title>
+<title>ColectTap Manager v1.15</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -75,7 +75,7 @@ tr:hover td{background:rgba(14,165,233,.05)}
 <!-- LOGIN -->
 <div id="login-screen">
   <h1>ColectTap Manager</h1>
-  <p style="color:var(--text2);font-size:13px">Painel de Gestão · Engetap · NR-13 · v1.14 · GAS v1.14</p>
+  <p style="color:var(--text2);font-size:13px">Painel de Gestão · Engetap · NR-13 · v1.15 · GAS v1.15</p>
   <div id="gas-status-login" style="font-size:12px;color:var(--text3);min-height:18px;margin-bottom:4px">Verificando GAS…</div>
   <input type="password" id="pin-input" maxlength="4" placeholder="PIN">
   <button onclick="doLogin()">Entrar</button>
@@ -88,7 +88,7 @@ tr:hover td{background:rgba(14,165,233,.05)}
   <div class="layout">
     <aside class="sidebar">
       <h2>Manager</h2>
-      <div class="version">ColectTap Manager v1.14</div>
+      <div class="version">ColectTap Manager v1.15</div>
       <div id="gas-status-app" style="font-size:11px;color:var(--text3);margin-bottom:12px;padding:4px 8px;border-radius:6px;background:var(--surf2)">GAS: —</div>
       <nav>
         <div class="menu-item active" onclick="showView('dashboard', this)">📊 Dashboard</div>
@@ -290,6 +290,17 @@ let _loginInProgress = false;
 
 // ── Helpers seguros contra TypeError em dados do GAS/Sheets ──
 function s(v) { return String(v == null ? '' : v).trim(); }
+function fmtDate(v) {
+  if (!v) return '—';
+  const str = String(v);
+  // ISO completo: 2026-05-19T03:00:00.000Z
+  const isoFull = str.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if (isoFull) return isoFull[3] + '/' + isoFull[2] + '/' + isoFull[1];
+  // Somente data: 2026-05-19
+  const isoDate = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDate) return isoDate[3] + '/' + isoDate[2] + '/' + isoDate[1];
+  return str;
+}
 function lower(v) { return s(v).toLowerCase(); }
 
 // Cache local
@@ -1412,7 +1423,7 @@ function gerarPDFColetas() {
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7);
   doc.setTextColor(...TEXT2);
-  doc.text('Gerado por ColectTap Manager v1.14  ·  Engetap Engenharia  ·  uso interno', ML, 290);
+  doc.text('Gerado por ColectTap Manager v1.15  ·  Engetap Engenharia  ·  uso interno', ML, 290);
 
   const nomeArquivo = 'ColectTap_Coletas_' + agora.toISOString().substring(0,10) + '.pdf';
   doc.save(nomeArquivo);
@@ -1719,26 +1730,27 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     doc.text(osLbl,ML+2,y+5);y+=9;
 
     y=secTit(y,eq,'1. Identificação do Equipamento');
-    y=row2(y,eq,[{l:'TAG',v:eq.tag},{l:'Tipo',v:eq.tipo}]);
+    y=row2(y,eq,[{l:'TAG',v:eq.tag},{l:'Tipo',v:tipoLabel(eq.tipo)}]);
     y=row2(y,eq,[{l:'Fabricante',v:eq.fabricante},{l:'Número Equip.',v:eq.numero_equip}]);
-    y=row2(y,eq,[{l:'Ano Fabricação',v:eq.ano_fabricacao},{l:'Categoria',v:eq.categoria}]);
+    y=row2(y,eq,[{l:'Ano Fabricação',v:eq.ano_fabricacao},{l:'Categoria',v:s(eq.categoria)?'Categoria '+s(eq.categoria):undefined}]);
     y=row2(y,eq,[{l:'Localização / Setor',v:eq.localizacao||eq.setor},{l:'Código Projeto',v:eq.codigo_projeto}]);
     y=row2(y,eq,[{l:'Placa Indelével',v:eq.placa_indelevel},{l:'Fluido / Classe',v:s(eq.fluido)+(eq.classe_fluido?' / '+s(eq.classe_fluido):'')+''}]);
 
     y=secTit(y,eq,'2. Dados de Projeto e Pressão');
-    y=row2(y,eq,[{l:'PMTA (kgf/cm²)',v:eq.pmta},{l:'P. Trabalho',v:eq.pressao_trabalho}]);
-    y=row2(y,eq,[{l:'P. Teste',v:eq.pressao_teste},{l:'Temperatura',v:eq.temperatura}]);
+    y=row2(y,eq,[{l:'PMTA (kgf/cm²)',v:eq.pmta},{l:'P. Trabalho (kgf/cm²)',v:eq.pressao_trabalho}]);
+    y=row2(y,eq,[{l:'P. Teste (kgf/cm²)',v:eq.pressao_teste},{l:'Temperatura (°C)',v:eq.temperatura}]);
     y=row2(y,eq,[{l:'Volume (m³)',v:eq.volume},{l:'Material',v:eq.material}]);
-    y=row2(y,eq,[{l:'Diâmetro',v:eq.diametro},{l:'Comprimento',v:eq.comprimento}]);
-    y=row2(y,eq,[{l:'Esp. Parede',v:eq.espessura_parede},{l:'Isolamento',v:eq.isolamento}]);
+    y=row2(y,eq,[{l:'Diâmetro (mm)',v:eq.diametro},{l:'Comprimento (mm)',v:eq.comprimento}]);
+    y=row2(y,eq,[{l:'Esp. Parede (mm)',v:eq.espessura_parede},{l:'Isolamento',v:eq.isolamento}]);
     if(s(eq.tipo)==='caldeira'){y=row2(y,eq,[{l:'Cap. Vapor (kg/h)',v:eq.capacidade_vapor},{l:'Área Aquecimento',v:eq.area_aquecimento}]);y=row2(y,eq,[{l:'Combustível',v:eq.combustivel},{l:'P. Projeto',v:eq.pressao_projeto}]);}
     if(s(eq.tipo)==='tanque'){y=row2(y,eq,[{l:'Teto',v:eq.teto},{l:'Revestimento',v:eq.revestimento}]);}
 
     y=secTit(y,eq,'3. Dispositivos de Segurança');
     y=row2(y,eq,[{l:'Manômetro',v:eq.possui_manometro},{l:'Man. Calibrado',v:eq.manometro_calibrado}]);
-    y=row2(y,eq,[{l:'Cert. Manômetro',v:eq.cert_manometro},{l:'Venc. Calibração',v:eq.venc_manometro}]);
+    y=row2(y,eq,[{l:'Cert. Manômetro',v:eq.cert_manometro},{l:'Venc. Calibração',v:fmtDate(eq.venc_manometro)}]);
     y=row2(y,eq,[{l:'PSV / Válv. Seg.',v:eq.possui_valvula},{l:'PSV Calibrada',v:eq.valvula_calibrada}]);
     y=row2(y,eq,[{l:'Cert. PSV',v:eq.cert_valvula},{l:'PA da PSV',v:eq.pa_valvula}]);
+    if(s(eq.venc_valvula))y=row2(y,eq,[{l:'Venc. Calibração PSV',v:fmtDate(eq.venc_valvula)}]);
     y=row2(y,eq,[{l:'Purgador',v:eq.possui_purgador},{l:'DCBI',v:eq.possui_dcbi}]);
     y=row2(y,eq,[{l:'Válv. Retenção',v:eq.possui_valvula_retencao},{l:'Ind. Nível',v:eq.possui_indicador_nivel}]);
 
