@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ColectTap Manager v1.17</title>
+<title>ColectTap Manager v1.19</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -75,7 +75,7 @@ tr:hover td{background:rgba(14,165,233,.05)}
 <!-- LOGIN -->
 <div id="login-screen">
   <h1>ColectTap Manager</h1>
-  <p style="color:var(--text2);font-size:13px">Painel de Gestão · Engetap · NR-13 · v1.17 · GAS v1.17</p>
+  <p style="color:var(--text2);font-size:13px">Painel de Gestão · Engetap · NR-13 · v1.19 · GAS v1.17</p>
   <div id="gas-status-login" style="font-size:12px;color:var(--text3);min-height:18px;margin-bottom:4px">Verificando GAS…</div>
   <input type="password" id="pin-input" maxlength="4" placeholder="PIN">
   <button onclick="doLogin()">Entrar</button>
@@ -88,7 +88,7 @@ tr:hover td{background:rgba(14,165,233,.05)}
   <div class="layout">
     <aside class="sidebar">
       <h2>Manager</h2>
-      <div class="version">ColectTap Manager v1.17</div>
+      <div class="version">ColectTap Manager v1.19</div>
       <div id="gas-status-app" style="font-size:11px;color:var(--text3);margin-bottom:12px;padding:4px 8px;border-radius:6px;background:var(--surf2)">GAS: —</div>
       <nav>
         <div class="menu-item active" onclick="showView('dashboard', this)">📊 Dashboard</div>
@@ -1424,7 +1424,7 @@ function gerarPDFColetas() {
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7);
   doc.setTextColor(...TEXT2);
-  doc.text('Gerado por ColectTap Manager v1.17  ·  Engetap Engenharia  ·  uso interno', ML, 290);
+  doc.text('Gerado por ColectTap Manager v1.19  ·  Engetap Engenharia  ·  uso interno', ML, 290);
 
   const nomeArquivo = 'ColectTap_Coletas_' + agora.toISOString().substring(0,10) + '.pdf';
   doc.save(nomeArquivo);
@@ -1638,7 +1638,7 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     doc.text(cliente.toUpperCase(), PW/2, 62, {align:'center'});
     if (cnpj) { doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.text('CNPJ: '+ltx(cnpj), PW/2, 70, {align:'center'}); }
     doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...REL_AZUL);
-    doc.text('INSPEÇÃO PERIÓDICA', PW/2, cnpj?82:76, {align:'center'});
+    doc.text('LEVANTAMENTO DE CAMPO', PW/2, cnpj?82:76, {align:'center'});
     const imgY = 90;
     const MAX_IMG_H = 100;
     let imgH = MAX_IMG_H;
@@ -1646,18 +1646,27 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     const fotosCapa = fotosEquip||[];
     const fotoCapa = capaKey ? (fotosCapa.find(f=>f.key===capaKey)||fotosCapa[0]) : fotosCapa[0];
     if (fotoCapa && fotoCapa.base64) {
+      let imgW = CW;
       try {
         const props = doc.getImageProperties('data:' + fotoCapa.mimeType + ';base64,' + fotoCapa.base64);
         if (props && props.width && props.height) {
-          const ratio = props.height / props.width;
-          imgH = Math.min(MAX_IMG_H, CW * ratio);
+          const ratio = props.height / props.width; // h/w
+          // Tentar encaixar na largura total
+          imgH = CW * ratio;
+          if (imgH > MAX_IMG_H) {
+            // Altura excede limite: reduzir largura proporcionalmente
+            imgH = MAX_IMG_H;
+            imgW = MAX_IMG_H / ratio;
+          }
           imgH = Math.max(40, imgH);
+          imgW = Math.max(40, imgW);
         }
       } catch(e) {}
+      const imgXAdj = ML + (CW - imgW) / 2;
       const imgYAdj = imgY + (MAX_IMG_H - imgH) / 2;
       try {
         const mt = (fotoCapa.mimeType||'').toUpperCase().includes('PNG') ? 'PNG' : 'JPEG';
-        doc.addImage('data:'+fotoCapa.mimeType+';base64,'+fotoCapa.base64, mt, ML, imgYAdj, CW, imgH);
+        doc.addImage('data:'+fotoCapa.mimeType+';base64,'+fotoCapa.base64, mt, imgXAdj, imgYAdj, imgW, imgH);
       } catch(e) { doc.setFillColor(220,230,245); doc.rect(ML,imgY,CW,MAX_IMG_H,'F'); }
     } else { doc.setFillColor(220,230,245); doc.rect(ML,imgY,CW,MAX_IMG_H,'F'); doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(...REL_TEXT2); doc.text('Sem foto de capa',PW/2,imgY+imgH/2,{align:'center'}); }
     const tag = ltx(s(eq.tag)||s(eq.numero_equip)||'—');
@@ -1703,25 +1712,42 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     doc.text(ltx(titulo.toUpperCase()),ML+3,y+6);return y+11;
   }
   function row2(y,eq,pares) {
-    y=ck(y,12,eq); const hw=CW/2;
+    const hw=CW/2;
+    // Calcular altura necessária para labels mais longos
+    let maxLabelLines = 1;
+    pares.forEach(p => {
+      if (p.l) {
+        const ll = doc.splitTextToSize(ltx(String(p.l)).toUpperCase(), hw-4);
+        if (ll.length > maxLabelLines) maxLabelLines = ll.length;
+      }
+    });
+    const cellH = maxLabelLines > 1 ? 14 : 12;
+    y=ck(y,cellH,eq);
     pares.forEach((p,i)=>{
       const x=ML+i*hw;
-      doc.setFillColor(...REL_LGRAY);doc.rect(x,y,hw-1,10,'F');
+      doc.setFillColor(...REL_LGRAY);doc.rect(x,y,hw-1,cellH-2,'F');
       doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...REL_TEXT2);
-      doc.text(ltx(String(p.l||'')).toUpperCase(),x+2,y+3.5);
+      const lLines = doc.splitTextToSize(ltx(String(p.l||'')).toUpperCase(), hw-4);
+      lLines.forEach((line,li) => doc.text(line, x+2, y+3.5+(li*3.5)));
+      const labelBottom = 3.5 + (lLines.length * 3.5);
       doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(...REL_DARK);
-      doc.text(ltx(String(p.v||'—')).substring(0,35),x+2,y+8);
+      const vTxt = ltx(String(p.v||'—'));
+      const vLines = doc.splitTextToSize(vTxt, hw-4);
+      doc.text(vLines[0]||'—', x+2, y+labelBottom+3);
     });
-    return y+12;
+    return y+cellH;
   }
   function row1(y,eq,l,v) {
-    y=ck(y,10,eq);
-    doc.setFillColor(...REL_LGRAY);doc.rect(ML,y,CW,9,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...REL_TEXT2);
-    doc.text(ltx(String(l||'')).toUpperCase(),ML+2,y+3.5);
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(...REL_DARK);
-    const lines=doc.splitTextToSize(ltx(String(v||'—')),CW-60);
-    doc.text(lines[0]||'—',ML+60,y+8);return y+11;
+    const val = ltx(String(v||'—'));
+    const lines = doc.splitTextToSize(val, CW-4);
+    const cellH = Math.max(11, lines.length * 5 + 6);
+    y = ck(y, cellH, eq);
+    doc.setFillColor(...REL_LGRAY); doc.rect(ML, y, CW, cellH, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...REL_TEXT2);
+    doc.text(ltx(String(l||'')).toUpperCase(), ML+2, y+3.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...REL_DARK);
+    lines.forEach((line, i) => doc.text(line, ML+2, y+8+(i*5)));
+    return y + cellH;
   }
   function txtBloco(y,eq,texto) {
     if(!texto)return y;
@@ -1743,29 +1769,51 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
 
     y=secTit(y,eq,'1. Identificação do Equipamento');
     y=row2(y,eq,[{l:'TAG',v:eq.tag},{l:'Tipo',v:tipoLabel(eq.tipo)}]);
-    y=row2(y,eq,[{l:'Fabricante',v:eq.fabricante},{l:'Número Equip.',v:eq.numero_equip}]);
-    y=row2(y,eq,[{l:'Ano Fabricação',v:eq.ano_fabricacao},{l:'Categoria',v:s(eq.categoria)?'Categoria '+s(eq.categoria):undefined}]);
+    y=row2(y,eq,[{l:'Fabricante',v:eq.fabricante},{l:'Número do Equipamento',v:eq.numero_equip}]);
+    y=row2(y,eq,[{l:'Ano de Fabricação',v:eq.ano_fabricacao},{l:'Categoria',v:s(eq.categoria)?'Categoria '+s(eq.categoria):undefined}]);
     const codProjetoLabel = normCodigo(eq.codigo_projeto) + (s(eq.ano_edicao_codigo_projeto) ? ' ('+s(eq.ano_edicao_codigo_projeto)+')' : '');
-    y=row2(y,eq,[{l:'Localização / Setor',v:eq.localizacao||eq.setor},{l:'Código Projeto',v:codProjetoLabel}]);
+    y=row2(y,eq,[{l:'Localização / Setor',v:eq.localizacao||eq.setor},{l:'Código de Projeto',v:codProjetoLabel}]);
     y=row2(y,eq,[{l:'Placa Indelével',v:eq.placa_indelevel},{l:'Fluido / Classe',v:s(eq.fluido)+(eq.classe_fluido?' / '+s(eq.classe_fluido):'')+''}]);
+    y=row2(y,eq,[{l:'Necessita Identificação TAG/Categoria?',v:eq.necessita_tag},{l:'Descrição do Equipamento',v:eq.descricao_equipamento}]);
 
     y=secTit(y,eq,'2. Dados de Projeto e Pressão');
-    y=row2(y,eq,[{l:'PMTA (kgf/cm²)',v:eq.pmta},{l:'P. Trabalho (kgf/cm²)',v:eq.pressao_trabalho}]);
-    y=row2(y,eq,[{l:'P. Teste (kgf/cm²)',v:eq.pressao_teste},{l:'Temperatura Média de Operação (°C)',v:eq.temperatura}]);
-    y=row2(y,eq,[{l:'Volume (L)',v:eq.volume},{l:'Material',v:eq.material}]);
-    y=row2(y,eq,[{l:'Diâmetro (mm)',v:eq.diametro},{l:'Comprimento (mm)',v:eq.comprimento}]);
-    y=row2(y,eq,[{l:'Esp. Parede (mm)',v:eq.espessura_parede},{l:'Possui Isolamento?',v:eq.possui_isolamento||eq.isolamento}]);
-    if(s(eq.tipo)==='caldeira'){y=row2(y,eq,[{l:'Cap. Vapor (kg/h)',v:eq.capacidade_vapor},{l:'Área Aquecimento',v:eq.area_aquecimento}]);y=row2(y,eq,[{l:'Combustível',v:eq.combustivel},{l:'P. Projeto',v:eq.pressao_projeto}]);}
-    if(s(eq.tipo)==='tanque'){y=row2(y,eq,[{l:'Teto',v:eq.teto},{l:'Revestimento',v:eq.revestimento}]);}
+    y=row2(y,eq,[{l:'PMTA (kgf/cm²)',v:eq.pmta},{l:'Pressão de Trabalho (kgf/cm²)',v:eq.pressao_trabalho}]);
+    y=row2(y,eq,[{l:'Pressão de Teste Hidrostático (kgf/cm²)',v:eq.pressao_teste},{l:'Temperatura Média de Operação (°C)',v:eq.temperatura}]);
+    y=row2(y,eq,[{l:'Já Foi Inspecionado Anteriormente?',v:eq.ja_inspecionado},{l:'Ano da Última Inspeção',v:eq.ano_ultima_inspecao}]);
+    if(s(eq.tipo)!=='tubulacao'){
+      y=row2(y,eq,[{l:'Volume (L)',v:eq.volume},{l:'Material',v:eq.material}]);
+      y=row2(y,eq,[{l:'Diâmetro (mm)',v:eq.diametro},{l:'Comprimento (mm)',v:eq.comprimento}]);
+      y=row2(y,eq,[{l:'Espessura de Parede (mm)',v:eq.espessura_parede},{l:'Possui Isolamento?',v:eq.possui_isolamento||eq.isolamento}]);
+    }
+    if(s(eq.tipo)==='tubulacao'){
+      y=row2(y,eq,[{l:'Bitola Nominal',v:eq.bitola},{l:'Comprimento (m)',v:eq.comprimento}]);
+      y=row2(y,eq,[{l:'Espessura de Parede (mm)',v:eq.espessura_parede},{l:'Classe de Pressão (ANSI/ASME)',v:eq.classe_pressao}]);
+      y=row2(y,eq,[{l:'Material',v:eq.material},{l:'Possui Isolamento?',v:eq.possui_isolamento||eq.isolamento}]);
+    }
+    if(s(eq.tipo)==='caldeira'){
+      y=row2(y,eq,[{l:'Capacidade de Vapor (kg/h)',v:eq.capacidade_vapor},{l:'Área de Superf. de Aquecimento (m²)',v:eq.area_aquecimento}]);
+      y=row2(y,eq,[{l:'Combustível',v:eq.combustivel},{l:'Pressão de Projeto (kgf/cm²)',v:eq.pressao_projeto}]);
+      y=row2(y,eq,[{l:'Material do Casco',v:eq.material},{l:'Possui Isolamento?',v:eq.possui_isolamento||eq.isolamento}]);
+    }
+    if(s(eq.tipo)==='tanque'){
+      y=row2(y,eq,[{l:'Diâmetro (m)',v:eq.diametro},{l:'Altura (m)',v:eq.altura}]);
+      y=row2(y,eq,[{l:'Volume (m³)',v:eq.volume},{l:'Tipo de Teto',v:eq.teto}]);
+      y=row2(y,eq,[{l:'Material',v:eq.material},{l:'Revestimento',v:eq.revestimento}]);
+      y=row2(y,eq,[{l:'Espessura de Parede (mm)',v:eq.espessura_parede},{l:'Possui Isolamento?',v:eq.possui_isolamento||eq.isolamento}]);
+    }
+    if(s(eq.tipo)==='vaso'){
+      // vaso já tem diametro/comprimento/espessura/material acima no bloco genérico
+    }
 
     y=secTit(y,eq,'3. Dispositivos de Segurança');
-    y=row2(y,eq,[{l:'Manômetro',v:eq.possui_manometro},{l:'Man. Calibrado',v:eq.manometro_calibrado}]);
-    y=row2(y,eq,[{l:'Cert. Manômetro',v:eq.cert_manometro},{l:'Venc. Calibração',v:fmtDate(eq.venc_manometro)}]);
-    y=row2(y,eq,[{l:'PSV / Válv. Seg.',v:eq.possui_valvula},{l:'PSV Calibrada',v:eq.valvula_calibrada}]);
-    y=row2(y,eq,[{l:'Cert. PSV',v:eq.cert_valvula},{l:'PA da PSV',v:eq.pa_valvula}]);
-    if(s(eq.venc_valvula))y=row2(y,eq,[{l:'Venc. Calibração PSV',v:fmtDate(eq.venc_valvula)}]);
-    y=row2(y,eq,[{l:'Purgador',v:eq.possui_purgador},{l:'DCBI',v:eq.possui_dcbi}]);
-    y=row2(y,eq,[{l:'Válv. Retenção',v:eq.possui_valvula_retencao},{l:'Ind. Nível',v:eq.possui_indicador_nivel}]);
+    y=row2(y,eq,[{l:'Possui Manômetro?',v:eq.possui_manometro},{l:'Manômetro Calibrado?',v:eq.manometro_calibrado}]);
+    y=row2(y,eq,[{l:'Número de Certificado do Manômetro',v:eq.cert_manometro},{l:'Vencimento da Calibração',v:fmtDate(eq.venc_manometro)}]);
+    y=row2(y,eq,[{l:'Possui PSV / Válvula de Segurança?',v:eq.possui_valvula},{l:'PSV Calibrada?',v:eq.valvula_calibrada}]);
+    y=row2(y,eq,[{l:'Número de Certificado da PSV',v:eq.cert_valvula},{l:'Pressão de Ajuste/Abertura da PSV (kgf/cm²)',v:eq.pa_valvula}]);
+    if(s(eq.venc_valvula))y=row2(y,eq,[{l:'Vencimento da Calibração da PSV',v:fmtDate(eq.venc_valvula)}]);
+    y=row2(y,eq,[{l:'Possui Purgador?',v:eq.possui_purgador},{l:'Possui DCBI?',v:eq.possui_dcbi}]);
+    y=row2(y,eq,[{l:'Possui Válvula de Retenção?',v:eq.possui_valvula_retencao},{l:(s(eq.tipo)==='caldeira'||s(eq.tipo)==='tanque')?'Possui Indicador de Nível?':'',v:(s(eq.tipo)==='caldeira'||s(eq.tipo)==='tanque')?eq.possui_indicador_nivel:''}]);
+    if(s(eq.possui_pressostato)) y=row2(y,eq,[{l:'Possui Pressostato?',v:eq.possui_pressostato},{l:'',v:''}]);
     if(s(eq.motivo_nao_calibracao_man))y=row1(y,eq,'Motivo da Não Calibração (Manômetro)',eq.motivo_nao_calibracao_man);
     if(s(eq.obs_manometro))y=row1(y,eq,'Observação sobre Manômetro',eq.obs_manometro);
     if(s(eq.motivo_nao_calibracao_psv))y=row1(y,eq,'Motivo da Não Calibração (PSV)',eq.motivo_nao_calibracao_psv);
@@ -1775,12 +1823,14 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     if(s(eq.motivo_nao_avaliacao_valvula))y=row1(y,eq,'Motivo da Não Avaliação da PSV',eq.motivo_nao_avaliacao_valvula);
 
     y=secTit(y,eq,'4. Documentação');
-    y=row1(y,eq,'Status Documentação',eq.status_documentacao);
-    y=row1(y,eq,'Documentos Presentes',eq.documentos_presentes);
+    y=row1(y,eq,'Status da Documentação',eq.status_documentacao);
+    if(s(eq.documentos_presentes)) y=row1(y,eq,'Documentos Presentes',eq.documentos_presentes);
+    if(s(eq.documentos_ausentes))  y=row1(y,eq,'Documentos Ausentes',eq.documentos_ausentes);
+    if(s(eq.documentos_a_receber)) y=row1(y,eq,'Documentos a Receber',eq.documentos_a_receber);
 
     y=secTit(y,eq,'5. Segurança do Trabalho');
-    y=row2(y,eq,[{l:'Trab. em Altura',v:eq.trabalho_altura},{l:'Necessita TH',v:eq.necessita_th}]);
-    y=row2(y,eq,[{l:'Espaço Confinado',v:eq.espaco_confinado},{l:'Andaime',v:eq.necessita_scaffold}]);
+    y=row2(y,eq,[{l:'Requer Trabalho em Altura?',v:eq.trabalho_altura},{l:'Necessita Teste Hidrostático?',v:eq.necessita_th}]);
+    y=row2(y,eq,[{l:'Acesso por Espaço Confinado?',v:eq.espaco_confinado},{l:'Requer Uso de Andaime?',v:eq.necessita_scaffold}]);
     y=row1(y,eq,'Ensaios Não Destrutivos Necessários',eq.ensaios_nd_necessarios);
     y=row1(y,eq,'Processo / Fluido',eq.processo);
 
@@ -1788,8 +1838,9 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     y=row1(y,eq,'Enquadramento',eq.enquadra_nr13);
     if(s(eq.enq_motivo))y=row1(y,eq,'Motivos (NR-13 13.2.1)',eq.enq_motivo);
     y=row1(y,eq,'Base de Enquadramento',eq.base_enquadramento);
-    if(s(eq.motivo_nao_enquadramento))y=row1(y,eq,'Motivo Não Enquadramento',eq.motivo_nao_enquadramento);
-    if(s(eq.situacao_nr13))y=row1(y,eq,'Situação NR-13',eq.situacao_nr13);
+    if(s(eq.motivo_nao_enquadramento)) y=row1(y,eq,'Motivo do Não Enquadramento',eq.motivo_nao_enquadramento);
+    if(s(eq.acao_nao_enquadramento))   y=row1(y,eq,'Ação Recomendada',eq.acao_nao_enquadramento);
+    if(s(eq.situacao_nr13))            y=row1(y,eq,'Situação NR-13',eq.situacao_nr13);
 
     // F2: aviso de conflito entre coleta de campo e documentação
     try {
@@ -1805,8 +1856,8 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
 
     if(s(eq.obs_gerais)||s(eq.obs_inspetor)||s(eq.risco_observado)||s(eq.pendencias_campo)||s(eq.pendencias_documentais)){
       y=secTit(y,eq,'7. Observações e Pendências');
-      if(s(eq.obs_gerais)){y=ck(y,6,eq);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...REL_DARK);doc.text('Obs. Gerais:',ML+2,y+5);y+=7;y=txtBloco(y,eq,eq.obs_gerais);}
-      if(s(eq.obs_inspetor)){y=ck(y,6,eq);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('Obs. Inspetor:',ML+2,y+5);y+=7;y=txtBloco(y,eq,eq.obs_inspetor);}
+      if(s(eq.obs_gerais)){y=ck(y,6,eq);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...REL_DARK);doc.text('Observações Gerais:',ML+2,y+5);y+=7;y=txtBloco(y,eq,eq.obs_gerais);}
+      if(s(eq.obs_inspetor)){y=ck(y,6,eq);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('Recomendações do Inspetor:',ML+2,y+5);y+=7;y=txtBloco(y,eq,eq.obs_inspetor);}
       if(s(eq.risco_observado)){y=ck(y,6,eq);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('Risco Observado:',ML+2,y+5);y+=7;y=txtBloco(y,eq,eq.risco_observado);}
       if(s(eq.pendencias_campo)){y=ck(y,6,eq);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(220,50,50);doc.text('Pendências Campo:',ML+2,y+5);doc.setTextColor(...REL_DARK);y+=7;y=txtBloco(y,eq,eq.pendencias_campo);}
       if(s(eq.pendencias_documentais)){y=ck(y,6,eq);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(150,100,200);doc.text('Pendências Documentais:',ML+2,y+5);doc.setTextColor(...REL_DARK);y+=7;y=txtBloco(y,eq,eq.pendencias_documentais);}
