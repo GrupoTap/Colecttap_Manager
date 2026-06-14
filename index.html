@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ColectTap Manager v1.19</title>
+<title>ColectTap Manager v1.20</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -75,7 +75,7 @@ tr:hover td{background:rgba(14,165,233,.05)}
 <!-- LOGIN -->
 <div id="login-screen">
   <h1>ColectTap Manager</h1>
-  <p style="color:var(--text2);font-size:13px">Painel de Gestão · Engetap · NR-13 · v1.19 · GAS v1.17</p>
+  <p style="color:var(--text2);font-size:13px">Painel de Gestão · Engetap · NR-13 · v1.20 · GAS v1.17</p>
   <div id="gas-status-login" style="font-size:12px;color:var(--text3);min-height:18px;margin-bottom:4px">Verificando GAS…</div>
   <input type="password" id="pin-input" maxlength="4" placeholder="PIN">
   <button onclick="doLogin()">Entrar</button>
@@ -88,7 +88,7 @@ tr:hover td{background:rgba(14,165,233,.05)}
   <div class="layout">
     <aside class="sidebar">
       <h2>Manager</h2>
-      <div class="version">ColectTap Manager v1.19</div>
+      <div class="version">ColectTap Manager v1.20</div>
       <div id="gas-status-app" style="font-size:11px;color:var(--text3);margin-bottom:12px;padding:4px 8px;border-radius:6px;background:var(--surf2)">GAS: —</div>
       <nav>
         <div class="menu-item active" onclick="showView('dashboard', this)">📊 Dashboard</div>
@@ -1424,7 +1424,7 @@ function gerarPDFColetas() {
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7);
   doc.setTextColor(...TEXT2);
-  doc.text('Gerado por ColectTap Manager v1.19  ·  Engetap Engenharia  ·  uso interno', ML, 290);
+  doc.text('Gerado por ColectTap Manager v1.20  ·  Engetap Engenharia  ·  uso interno', ML, 290);
 
   const nomeArquivo = 'ColectTap_Coletas_' + agora.toISOString().substring(0,10) + '.pdf';
   doc.save(nomeArquivo);
@@ -1780,7 +1780,7 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     y=row2(y,eq,[{l:'PMTA (kgf/cm²)',v:eq.pmta},{l:'Pressão de Trabalho (kgf/cm²)',v:eq.pressao_trabalho}]);
     y=row2(y,eq,[{l:'Pressão de Teste Hidrostático (kgf/cm²)',v:eq.pressao_teste},{l:'Temperatura Média de Operação (°C)',v:eq.temperatura}]);
     y=row2(y,eq,[{l:'Já Foi Inspecionado Anteriormente?',v:eq.ja_inspecionado},{l:'Ano da Última Inspeção',v:eq.ano_ultima_inspecao}]);
-    if(s(eq.tipo)!=='tubulacao'){
+    if(s(eq.tipo)==='vaso'){
       y=row2(y,eq,[{l:'Volume (L)',v:eq.volume},{l:'Material',v:eq.material}]);
       y=row2(y,eq,[{l:'Diâmetro (mm)',v:eq.diametro},{l:'Comprimento (mm)',v:eq.comprimento}]);
       y=row2(y,eq,[{l:'Espessura de Parede (mm)',v:eq.espessura_parede},{l:'Possui Isolamento?',v:eq.possui_isolamento||eq.isolamento}]);
