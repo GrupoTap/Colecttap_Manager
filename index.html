@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ColectTap Manager v1.20</title>
+<title>ColectTap Manager v1.21</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -75,7 +75,7 @@ tr:hover td{background:rgba(14,165,233,.05)}
 <!-- LOGIN -->
 <div id="login-screen">
   <h1>ColectTap Manager</h1>
-  <p style="color:var(--text2);font-size:13px">Painel de Gestão · Engetap · NR-13 · v1.20 · GAS v1.17</p>
+  <p style="color:var(--text2);font-size:13px">Painel de Gestão · Engetap · NR-13 · v1.21 · GAS v1.17</p>
   <div id="gas-status-login" style="font-size:12px;color:var(--text3);min-height:18px;margin-bottom:4px">Verificando GAS…</div>
   <input type="password" id="pin-input" maxlength="4" placeholder="PIN">
   <button onclick="doLogin()">Entrar</button>
@@ -88,7 +88,7 @@ tr:hover td{background:rgba(14,165,233,.05)}
   <div class="layout">
     <aside class="sidebar">
       <h2>Manager</h2>
-      <div class="version">ColectTap Manager v1.20</div>
+      <div class="version">ColectTap Manager v1.21</div>
       <div id="gas-status-app" style="font-size:11px;color:var(--text3);margin-bottom:12px;padding:4px 8px;border-radius:6px;background:var(--surf2)">GAS: —</div>
       <nav>
         <div class="menu-item active" onclick="showView('dashboard', this)">📊 Dashboard</div>
@@ -1424,7 +1424,7 @@ function gerarPDFColetas() {
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(7);
   doc.setTextColor(...TEXT2);
-  doc.text('Gerado por ColectTap Manager v1.20  ·  Engetap Engenharia  ·  uso interno', ML, 290);
+  doc.text('Gerado por ColectTap Manager v1.21  ·  Engetap Engenharia  ·  uso interno', ML, 290);
 
   const nomeArquivo = 'ColectTap_Coletas_' + agora.toISOString().substring(0,10) + '.pdf';
   doc.save(nomeArquivo);
@@ -1775,6 +1775,8 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     y=row2(y,eq,[{l:'Localização / Setor',v:eq.localizacao||eq.setor},{l:'Código de Projeto',v:codProjetoLabel}]);
     y=row2(y,eq,[{l:'Placa Indelével',v:eq.placa_indelevel},{l:'Fluido / Classe',v:s(eq.fluido)+(eq.classe_fluido?' / '+s(eq.classe_fluido):'')+''}]);
     y=row2(y,eq,[{l:'Necessita Identificação TAG/Categoria?',v:eq.necessita_tag},{l:'Descrição do Equipamento',v:eq.descricao_equipamento}]);
+    if(s(eq.fixado))               y=row2(y,eq,[{l:'Equipamento Fixado?',v:eq.fixado},{l:'',v:''}]);
+    if(s(eq.justificativa_fixacao))y=row1(y,eq,'Justificativa (não fixado)',eq.justificativa_fixacao);
 
     y=secTit(y,eq,'2. Dados de Projeto e Pressão');
     y=row2(y,eq,[{l:'PMTA (kgf/cm²)',v:eq.pmta},{l:'Pressão de Trabalho (kgf/cm²)',v:eq.pressao_trabalho}]);
@@ -1782,8 +1784,9 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     y=row2(y,eq,[{l:'Já Foi Inspecionado Anteriormente?',v:eq.ja_inspecionado},{l:'Ano da Última Inspeção',v:eq.ano_ultima_inspecao}]);
     if(s(eq.tipo)==='vaso'){
       y=row2(y,eq,[{l:'Volume (L)',v:eq.volume},{l:'Material',v:eq.material}]);
-      y=row2(y,eq,[{l:'Diâmetro (mm)',v:eq.diametro},{l:'Comprimento (mm)',v:eq.comprimento}]);
-      y=row2(y,eq,[{l:'Espessura de Parede (mm)',v:eq.espessura_parede},{l:'Possui Isolamento?',v:eq.possui_isolamento||eq.isolamento}]);
+      y=row2(y,eq,[{l:'Diâmetro (mm)',v:eq.diametro},{l:'Comprimento / Altura (mm)',v:eq.comprimento}]);
+      y=row2(y,eq,[{l:'Altura do Tampo (mm)',v:eq.altura_tampo},{l:'Espessura de Parede (mm)',v:eq.espessura_parede}]);
+      y=row2(y,eq,[{l:'Possui Isolamento?',v:eq.possui_isolamento||eq.isolamento},{l:'',v:''}]);
     }
     if(s(eq.tipo)==='tubulacao'){
       y=row2(y,eq,[{l:'Bitola Nominal',v:eq.bitola},{l:'Comprimento (m)',v:eq.comprimento}]);
@@ -1814,6 +1817,7 @@ async function _gerarPDFEquipamentos(equips, nomeArquivo) {
     y=row2(y,eq,[{l:'Possui Purgador?',v:eq.possui_purgador},{l:'Possui DCBI?',v:eq.possui_dcbi}]);
     y=row2(y,eq,[{l:'Possui Válvula de Retenção?',v:eq.possui_valvula_retencao},{l:(s(eq.tipo)==='caldeira'||s(eq.tipo)==='tanque')?'Possui Indicador de Nível?':'',v:(s(eq.tipo)==='caldeira'||s(eq.tipo)==='tanque')?eq.possui_indicador_nivel:''}]);
     if(s(eq.possui_pressostato)) y=row2(y,eq,[{l:'Possui Pressostato?',v:eq.possui_pressostato},{l:'',v:''}]);
+    if(s(eq.possui_aterramento)) y=row2(y,eq,[{l:'Possui Aterramento Elétrico?',v:eq.possui_aterramento},{l:'',v:''}]);
     if(s(eq.motivo_nao_calibracao_man))y=row1(y,eq,'Motivo da Não Calibração (Manômetro)',eq.motivo_nao_calibracao_man);
     if(s(eq.obs_manometro))y=row1(y,eq,'Observação sobre Manômetro',eq.obs_manometro);
     if(s(eq.motivo_nao_calibracao_psv))y=row1(y,eq,'Motivo da Não Calibração (PSV)',eq.motivo_nao_calibracao_psv);
@@ -1945,8 +1949,8 @@ function gerarPlanilhaXLSX() {
   const idxs=_indicesSelecionados();
   if(!idxs.length){mostrarFeedback('Selecione ao menos um equipamento',true);return;}
   const equips=idxs.map(i=>_relEquipsAtual[i]);
-  const cab=['OS','Cliente','TAG','Tipo','Fabricante','N_Equip','Ano_Fab','Categoria','Codigo_Projeto','Localizacao','Setor','Placa_Indelevel','PMTA','P_Trabalho','P_Teste','Temperatura','Fluido','Classe_Fluido','Volume','Diametro','Comprimento','Esp_Parede','Material','Manometro','Man_Calibrado','Cert_Man','Venc_Man','PSV','PSV_Calibrada','Cert_PSV','PA_PSV','Purgador','DCBI','Valv_Retencao','Ind_Nivel','Trab_Altura','Necessita_TH','Espaco_Confinado','Scaffold','Ensaios_END','Processo','Enquadra_NR13','Base_Enquadramento','Motivo_Nao_Enq','Situacao_NR13','Status_Docs','Docs_Presentes','Docs_Ausentes','Docs_Receber','Obs_Gerais','Obs_Inspetor','Risco_Observado','Pendencias_Campo','Pendencias_Documentais','Status_Completude','Sync_Status','Qtd_Fotos','Drive_URL','Data_Coleta','Inspetor'];
-  const linhas=equips.map(eq=>[s(eq.numero_os),s(eq.cliente),s(eq.tag),s(eq.tipo),s(eq.fabricante),s(eq.numero_equip),s(eq.ano_fabricacao),s(eq.categoria),s(normCodigo(eq.codigo_projeto)),s(eq.localizacao),s(eq.setor),s(eq.placa_indelevel),s(eq.pmta),s(eq.pressao_trabalho),s(eq.pressao_teste),s(eq.temperatura),s(eq.fluido),s(eq.classe_fluido),s(eq.volume),s(eq.diametro),s(eq.comprimento),s(eq.espessura_parede),s(eq.material),s(eq.possui_manometro),s(eq.manometro_calibrado),s(eq.cert_manometro),s(eq.venc_manometro),s(eq.possui_valvula),s(eq.valvula_calibrada),s(eq.cert_valvula),s(eq.pa_valvula),s(eq.possui_purgador),s(eq.possui_dcbi),s(eq.possui_valvula_retencao),s(eq.possui_indicador_nivel),s(eq.trabalho_altura),s(eq.necessita_th),s(eq.espaco_confinado),s(eq.necessita_scaffold),s(eq.ensaios_nd_necessarios),s(eq.processo),s(eq.enquadra_nr13),s(eq.base_enquadramento),s(eq.motivo_nao_enquadramento),s(eq.situacao_nr13),s(eq.status_documentacao),s(eq.documentos_presentes),s(eq.documentos_ausentes),s(eq.documentos_a_receber),s(eq.obs_gerais),s(eq.obs_inspetor),s(eq.risco_observado),s(eq.pendencias_campo),s(eq.pendencias_documentais),s(eq.status_completude),s(eq.sync_status),s(eq.quantidade_fotos),s(eq.drive_folder_url),s(eq.data_coleta),s(eq.inspetor)]);
+  const cab=['OS','Cliente','TAG','Tipo','Fabricante','N_Equip','Ano_Fab','Categoria','Codigo_Projeto','Localizacao','Setor','Placa_Indelevel','Fixado','Justificativa_Fixacao','PMTA','P_Trabalho','P_Teste','Temperatura','Fluido','Classe_Fluido','Volume','Diametro','Comprimento','Altura_Tampo','Esp_Parede','Material','Manometro','Man_Calibrado','Cert_Man','Venc_Man','PSV','PSV_Calibrada','Cert_PSV','PA_PSV','Purgador','DCBI','Valv_Retencao','Ind_Nivel','Aterramento','Trab_Altura','Necessita_TH','Espaco_Confinado','Scaffold','Ensaios_END','Processo','Enquadra_NR13','Base_Enquadramento','Motivo_Nao_Enq','Situacao_NR13','Status_Docs','Docs_Presentes','Docs_Ausentes','Docs_Receber','Obs_Gerais','Obs_Inspetor','Risco_Observado','Pendencias_Campo','Pendencias_Documentais','Status_Completude','Sync_Status','Qtd_Fotos','Drive_URL','Data_Coleta','Inspetor'];
+  const linhas=equips.map(eq=>[s(eq.numero_os),s(eq.cliente),s(eq.tag),s(eq.tipo),s(eq.fabricante),s(eq.numero_equip),s(eq.ano_fabricacao),s(eq.categoria),s(normCodigo(eq.codigo_projeto)),s(eq.localizacao),s(eq.setor),s(eq.placa_indelevel),s(eq.fixado),s(eq.justificativa_fixacao),s(eq.pmta),s(eq.pressao_trabalho),s(eq.pressao_teste),s(eq.temperatura),s(eq.fluido),s(eq.classe_fluido),s(eq.volume),s(eq.diametro),s(eq.comprimento),s(eq.altura_tampo),s(eq.espessura_parede),s(eq.material),s(eq.possui_manometro),s(eq.manometro_calibrado),s(eq.cert_manometro),s(eq.venc_manometro),s(eq.possui_valvula),s(eq.valvula_calibrada),s(eq.cert_valvula),s(eq.pa_valvula),s(eq.possui_purgador),s(eq.possui_dcbi),s(eq.possui_valvula_retencao),s(eq.possui_indicador_nivel),s(eq.possui_aterramento),s(eq.trabalho_altura),s(eq.necessita_th),s(eq.espaco_confinado),s(eq.necessita_scaffold),s(eq.ensaios_nd_necessarios),s(eq.processo),s(eq.enquadra_nr13),s(eq.base_enquadramento),s(eq.motivo_nao_enquadramento),s(eq.situacao_nr13),s(eq.status_documentacao),s(eq.documentos_presentes),s(eq.documentos_ausentes),s(eq.documentos_a_receber),s(eq.obs_gerais),s(eq.obs_inspetor),s(eq.risco_observado),s(eq.pendencias_campo),s(eq.pendencias_documentais),s(eq.status_completude),s(eq.sync_status),s(eq.quantidade_fotos),s(eq.drive_folder_url),s(eq.data_coleta),s(eq.inspetor)]);
   const ws=XLSX.utils.aoa_to_sheet([cab,...linhas]);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'NR-13');
